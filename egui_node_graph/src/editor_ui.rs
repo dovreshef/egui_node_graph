@@ -556,12 +556,12 @@ where
                         .text_style(TextStyle::Button)
                         .color(text_color),
                 ));
-                responses.extend(
-                    self.graph[self.node_id]
-                        .user_data
-                        .top_bar_ui(ui, self.node_id, self.graph, user_state)
-                        .into_iter(),
-                );
+                responses.extend(self.graph[self.node_id].user_data.top_bar_ui(
+                    ui,
+                    self.node_id,
+                    self.graph,
+                    user_state,
+                ));
                 ui.add_space(8.0); // The size of the little cross icon
             });
             ui.add_space(margin.y);
@@ -640,12 +640,12 @@ where
                 output_port_heights.push((height_before + height_after) / 2.0);
             }
 
-            responses.extend(
-                self.graph[self.node_id]
-                    .user_data
-                    .bottom_ui(ui, self.node_id, self.graph, user_state)
-                    .into_iter(),
-            );
+            responses.extend(self.graph[self.node_id].user_data.bottom_ui(
+                ui,
+                self.node_id,
+                self.graph,
+                user_state,
+            ));
         });
 
         // Second pass, iterate again to draw the ports. This happens outside
@@ -795,6 +795,20 @@ where
         // NOTE: This code is a bit more involved than it needs to be because egui
         // does not support drawing rectangles with asymmetrical round corners.
 
+        /// helper function to create a rect shape
+        #[inline]
+        fn rect_shape(rect: Rect, rounding: Rounding, fill: Color32) -> Shape {
+            Shape::Rect(RectShape {
+                rect,
+                rounding,
+                fill,
+                stroke: Stroke::NONE,
+                // Turn off texturing
+                fill_texture_id: TextureId::Managed(0),
+                uv: Rect::ZERO,
+            })
+        }
+
         let (shape, outline) = {
             let rounding_radius = 4.0;
             let rounding = Rounding::same(rounding_radius);
@@ -802,46 +816,30 @@ where
             let titlebar_height = title_height + margin.y;
             let titlebar_rect =
                 Rect::from_min_size(outer_rect.min, vec2(outer_rect.width(), titlebar_height));
-            let titlebar = Shape::Rect(RectShape {
-                rect: titlebar_rect,
+            let titlebar = rect_shape(
+                titlebar_rect,
                 rounding,
-                fill: self.graph[self.node_id]
+                self.graph[self.node_id]
                     .user_data
                     .titlebar_color(ui, self.node_id, self.graph, user_state)
                     .unwrap_or_else(|| background_color.lighten(0.8)),
-                stroke: Stroke::NONE,
-            });
+            );
 
             let body_rect = Rect::from_min_size(
                 outer_rect.min + vec2(0.0, titlebar_height - rounding_radius),
                 vec2(outer_rect.width(), outer_rect.height() - titlebar_height),
             );
-            let body = Shape::Rect(RectShape {
-                rect: body_rect,
-                rounding: Rounding::none(),
-                fill: background_color,
-                stroke: Stroke::NONE,
-            });
+            let body = rect_shape(body_rect, Rounding::ZERO, background_color);
 
             let bottom_body_rect = Rect::from_min_size(
                 body_rect.min + vec2(0.0, body_rect.height() - titlebar_height * 0.5),
                 vec2(outer_rect.width(), titlebar_height),
             );
-            let bottom_body = Shape::Rect(RectShape {
-                rect: bottom_body_rect,
-                rounding,
-                fill: background_color,
-                stroke: Stroke::NONE,
-            });
+            let bottom_body = rect_shape(bottom_body_rect, rounding, background_color);
 
             let node_rect = titlebar_rect.union(body_rect).union(bottom_body_rect);
             let outline = if self.selected {
-                Shape::Rect(RectShape {
-                    rect: node_rect.expand(1.0),
-                    rounding,
-                    fill: Color32::WHITE.lighten(0.8),
-                    stroke: Stroke::NONE,
-                })
+                rect_shape(node_rect.expand(1.0), rounding, Color32::WHITE.lighten(0.8))
             } else {
                 Shape::Noop
             };
