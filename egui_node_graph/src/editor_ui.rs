@@ -351,14 +351,25 @@ where
                     self.node_order.push(*node_id);
                 }
                 NodeResponse::MoveNode { node, drag_delta } => {
-                    self.node_positions[*node] += *drag_delta;
                     // Handle multi-node selection movement
-                    if self.selected_nodes.contains(node) && self.selected_nodes.len() > 1 {
-                        for n in self.selected_nodes.iter().copied() {
-                            if n != *node {
-                                self.node_positions[n] += *drag_delta;
-                            }
-                        }
+                    let nodes = match self.selected_nodes.contains(node) {
+                        true => self.selected_nodes.to_vec(),
+                        false => vec![*node],
+                    };
+                    let board_size = ui.max_rect();
+                    let max_width = board_size.width();
+                    let max_height = board_size.height();
+                    let min_distance = 1.0;
+                    for node in nodes {
+                        let mut new_pos = self.node_positions[node] + *drag_delta;
+                        let node_rect = node_rects[&node];
+                        let max_x = max_width - node_rect.width() - min_distance;
+                        let min_x = min_distance;
+                        let min_y = min_distance;
+                        let max_y = max_height - node_rect.height() - min_distance;
+                        new_pos.x = new_pos.x.clamp(min_x, max_x);
+                        new_pos.y = new_pos.y.clamp(min_y, max_y);
+                        self.node_positions[node] = new_pos;
                     }
                 }
                 NodeResponse::User(_) => {
